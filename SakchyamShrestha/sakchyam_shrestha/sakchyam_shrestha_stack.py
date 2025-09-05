@@ -1,4 +1,3 @@
-#MainStack.py --- IGNORE ---
 from aws_cdk import (
     Duration,
     Stack,
@@ -8,8 +7,10 @@ from aws_cdk import (
     aws_events as events_,
     aws_events_targets as targets_,
     aws_cloudwatch as cloudwatch_,
-    aws_cloudwatch_actions as cw_actions
-    # aws_sqs as sqs,
+    aws_cloudwatch_actions as cw_actions,
+    aws_sns as sns,
+    aws_sns_subscriptions as subscriptions,
+    aws_dynamodb as dynamodb,
 )
 from constructs import Construct
 from modules import constants as constants 
@@ -19,14 +20,14 @@ class SakchyamShresthaStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # Create IAM role for Lambda with CloudWatch permissions
-        lambda_role = self.create_lambda_role()
+        webealthlambda_role = self.create_lambda_role("WebHealthLambdaRole")
 
         # Create the Lambda function for web health monitoring
         web_health_lambda = self.create_lambda(
             'WebHealthLambdaFunction',
             './modules',
             'WebHealthLambda.lambda_handler',
-            lambda_role
+            webealthlambda_role
         )
         web_health_lambda.apply_removal_policy(RemovalPolicy.DESTROY)
 
@@ -69,17 +70,59 @@ class SakchyamShresthaStack(Stack):
 
         latency_alarm = cloudwatch_.Alarm(self, "LatencyAlarm",
             comparison_operator=cloudwatch_.ComparisonOperator.GREATER_THAN_THRESHOLD,
-            threshold=0.75, 
+            threshold=0.10, 
             evaluation_periods=1,
             metric=latency_metric,
             treat_missing_data=cloudwatch_.TreatMissingData.BREACHING
         )
+        # SNS Topic for alarm notifications
+        topic = sns.Topic(self, "AlarmNotification")
+        topic.add_subscription(subscriptions.EmailSubscription("ssakchyam@gmail.com"))
+
+        # Attach SNS topic to CloudWatch alarms
+        availability_alarm.add_alarm_action(cw_actions.SnsAction(topic))
+        latency_alarm.add_alarm_action(cw_actions.SnsAction(topic))
+
+        # CloudWatch dashboard
+        graph_widget = cloudwatch_.GraphWidget(
+            title="Web Health Metrics",
+            left=[availability_metric, latency_metric],
+            width=24,
+            height=6,
+            legend_position=cloudwatch_.LegendPosition.RIGHT,
+            left_y_axis=cloudwatch_.YAxisProps(label="MetricValues",min=0,show_units=False),
+            right_y_axis=cloudwatch_.YAxisProps(label="Time",min=0,show_units=False),
+            period=Duration.minutes(1)
+        )
+        dashboard=cloudwatch_.Dashboard(
+            self,
+            "URLMonitorDashboard",
+            dashboard_name="URLMonitorDashboard"
+        )
+        dashboard.add_widgets(graph_widget)
+
+        # Create DynamoDB table V2
+        db_table = dynamodb.Table(self, "WebHealthTableV2",
+            partition_key={"name": "id", "type": dynamodb.AttributeType.STRING},
+            removal_policy=RemovalPolicy.DESTROY
+        )
+
+        DBlambda_role = self.create_lambda_role("DBLambdaRole")
+        DB_lambda = self.create_lambda(
+            'Sakchyam_DynamoDBLambdaFunction',
+            './modules',
+            'DBLambda.lambda_handler',
+            DBlambda_role
+        )
+        DB_lambda.apply_removal_policy(RemovalPolicy.DESTROY)
+        db_table.grant_write_data(DB_lambda)
 
     def create_lambda_role(self):
         """
         Creates and returns an IAM role for Lambda with CloudWatch permissions.
         """
-        lambda_role = aws_iam.Role(self, "WebHealthLambdaRole",
+    def create_lambda_role(self, role_id):
+        lambda_role = aws_iam.Role(self, role_id,
             assumed_by=aws_iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 aws_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"),

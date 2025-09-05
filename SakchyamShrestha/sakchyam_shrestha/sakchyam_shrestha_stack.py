@@ -90,10 +90,23 @@ class SakchyamShresthaStack(Stack):
             width=24,
             height=6,
             legend_position=cloudwatch_.LegendPosition.RIGHT,
-            left_y_axis=cloudwatch_.YAxisProps(label="MetricValues",min=0,show_units=False),
-            right_y_axis=cloudwatch_.YAxisProps(label="Time",min=0,show_units=False),
-            period=Duration.minutes(1)
+            left_y_axis=cloudwatch_.YAxisProps(label="MetricValues", min=0, show_units=False),
+            right_y_axis=cloudwatch_.YAxisProps(label="Time", min=0, show_units=False),
+            period=Duration.minutes(1),
+            horizontal_annotations=[
+                cloudwatch_.HorizontalAnnotation(
+                    value=0.99,
+                    label="Availability Alarm Threshold",
+                    color="#ff0000"  # Red
+                ),
+                cloudwatch_.HorizontalAnnotation(
+                    value=0.10,
+                    label="Latency Alarm Threshold",
+                    color="#ffa500"  # Orange
+                )
+            ]
         )
+        
         dashboard=cloudwatch_.Dashboard(
             self,
             "URLMonitorDashboard",

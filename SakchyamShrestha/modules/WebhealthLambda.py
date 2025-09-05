@@ -1,8 +1,7 @@
-#WebHealthLambda.py --- IGNORE ---
 import urllib.request
 import time
 # Import helper class for publishing metrics to CloudWatch
-from CloudWatchMetric import CloudWatchMetricPublisher
+from CloudWatch_putMetric import CloudWatchMetricPublisher
 # Import project constants
 import constants
 
@@ -30,7 +29,7 @@ def get_url_availability(url):
 
 # Lambda entry point: checks URL health and publishes metrics
 def lambda_handler(event, context):
-    results = dict()
+    values = dict()
     metric_publisher = CloudWatchMetricPublisher()
     dimensions = [
         {'Name': 'URL', 'Value': constants.URL_TO_MONITOR}
@@ -43,5 +42,5 @@ def lambda_handler(event, context):
     latency = get_url_latency(constants.URL_TO_MONITOR)
     metric_publisher.put_metric_data(constants.URL_MONITOR_NAMESPACE, constants.URL_MONITOR_METRIC_NAME_LATENCY, dimensions, latency)
 
-    results.update({"availability": availability, "latency": latency})
-    return results
+    values.update({"availability": availability, "latency": latency})
+    return values

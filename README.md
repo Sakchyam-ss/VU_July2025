@@ -122,18 +122,18 @@ If you get:
 ### ScreenShots:
 
 ### 1. Web Health Checks
-![Web Health Checks](screenshots/1.png)
+![Web Health Checks](Screenshots/1.png)
 
 ### 2. DynamoDB Check
-![DynamoDB Check](screenshots/2.png)
-![DynamoDB Log Check](screenshots/4.png)
+![DynamoDB Check](Screenshots/2.png)
+![DynamoDB Log Check](Screenshots/4.png)
 
 ### 3. Web Health Dashboard
-![Web Health Dashboard](screenshots/3.png)
+![Web Health Dashboard](Screenshots/3.png)
 
 ### 4. DynamoDB Logging of metrics for audit/history
-![DynamoDB Logging of metrics for audit/history](screenshots/5.png)
-(screenshots/6.png)
+![DynamoDB Logging of metrics for audit/history](Screenshots/5.png)
+(Screenshots/6.png)
 
 ### 5. Alarms & Notifications via SNS (email and SMS subscription)
-![Alarms & Notifications via SNS](screenshots/7.png)
+![Alarms & Notifications via SNS](Screenshots/7.png)

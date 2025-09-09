@@ -14,6 +14,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 from modules import constants as constants 
+from aws_cdk.aws_dynamodb import TableV2, AttributeType
 
 class SakchyamShresthaStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -31,7 +32,7 @@ class SakchyamShresthaStack(Stack):
         )
         web_health_lambda.apply_removal_policy(RemovalPolicy.DESTROY)
 
-        # Schedule Lambda to run every minute
+        # Schedule Lambda to run every 1 minute
         lambda_schedule = events_.Schedule.rate(Duration.minutes(1))
         lambda_target = targets_.LambdaFunction(handler=web_health_lambda)
 
@@ -40,7 +41,7 @@ class SakchyamShresthaStack(Stack):
                             schedule=lambda_schedule, targets=[lambda_target])
         rule.apply_removal_policy(RemovalPolicy.DESTROY)
 
-        # Define CloudWatch metrics for availability and latency
+        # Define CloudWatch metrics for availability
         availability_metric = cloudwatch_.Metric(
             namespace=constants.URL_MONITOR_NAMESPACE,
             metric_name=constants.URL_MONITOR_METRIC_NAME_AVAILABILITY,
@@ -50,6 +51,7 @@ class SakchyamShresthaStack(Stack):
             period=Duration.minutes(1),
         )
 
+        # Define CloudWatch metrics for latency
         latency_metric = cloudwatch_.Metric(
             namespace=constants.URL_MONITOR_NAMESPACE,
             metric_name=constants.URL_MONITOR_METRIC_NAME_LATENCY,
@@ -59,7 +61,7 @@ class SakchyamShresthaStack(Stack):
             period=Duration.minutes(1),
         )
 
-        # Create CloudWatch alarms for availability and latency
+        # Create CloudWatch alarms for availability
         availability_alarm = cloudwatch_.Alarm(self, "AvailabilityAlarm",
             comparison_operator=cloudwatch_.ComparisonOperator.LESS_THAN_THRESHOLD,
             threshold=0.99,
@@ -68,9 +70,10 @@ class SakchyamShresthaStack(Stack):
             treat_missing_data=cloudwatch_.TreatMissingData.BREACHING
         )
 
+        # Create CloudWatch alarms for latency
         latency_alarm = cloudwatch_.Alarm(self, "LatencyAlarm",
             comparison_operator=cloudwatch_.ComparisonOperator.GREATER_THAN_THRESHOLD,
-            threshold=0.10, 
+            threshold=0.3, 
             evaluation_periods=1,
             metric=latency_metric,
             treat_missing_data=cloudwatch_.TreatMissingData.BREACHING
@@ -92,27 +95,37 @@ class SakchyamShresthaStack(Stack):
             legend_position=cloudwatch_.LegendPosition.RIGHT,
             left_y_axis=cloudwatch_.YAxisProps(label="MetricValues", min=0, show_units=False),
             right_y_axis=cloudwatch_.YAxisProps(label="Time", min=0, show_units=False),
-            period=Duration.minutes(1),
-            horizontal_annotations=[
-                cloudwatch_.HorizontalAnnotation(
-                    value=0.99,
-                    label="Availability Alarm Threshold",
-                    color="#ff0000"  # Red
-                ),
-                cloudwatch_.HorizontalAnnotation(
-                    value=0.10,
-                    label="Latency Alarm Threshold",
-                    color="#ffa500"  # Orange
-                )
-            ]
+            period=Duration.minutes(1)
         )
         
-        dashboard=cloudwatch_.Dashboard(
-            self,
-            "URLMonitorDashboard",
-            dashboard_name="URLMonitorDashboard"
+        dashboard = cloudwatch_.Dashboard(self, "WebHealthDashboard")
+        # Availability Dashboard widget
+        dashboard.add_widgets(
+            cloudwatch_.GraphWidget(
+                title="Availability",
+                left=[availability_metric],
+                left_y_axis=cloudwatch_.YAxisProps(
+                    label="Availability (0–1)",
+                    min=0,
+                    max=1,
+                    show_units=False,
+                ),
+                width=12
+            )
         )
-        dashboard.add_widgets(graph_widget)
+        # Latency Dashboard widget
+        dashboard.add_widgets(
+            cloudwatch_.GraphWidget(
+                title="Latency (p90)",
+                left=[latency_metric],
+                left_y_axis=cloudwatch_.YAxisProps(
+                    label="Seconds",
+                    min=0,
+                    show_units=True,
+                ),
+                width=12
+            )
+        )
 
         # Create DynamoDB table V2
         db_table = dynamodb.Table(self, "WebHealthTableV2",
@@ -120,16 +133,32 @@ class SakchyamShresthaStack(Stack):
             removal_policy=RemovalPolicy.DESTROY
         )
 
+        # Create Lambda function for DynamoDB operations
         DBlambda_role = self.create_lambda_role("DBLambdaRole")
-        DB_lambda = self.create_lambda(
+        DBlambda_role.add_to_policy(aws_iam.PolicyStatement(
+            actions=["lambda:InvokeFunction"],
+            resources=[web_health_lambda.function_arn]
+        ))
+
+        # Create the Lambda function for DynamoDB operations so that we can log results from WebHealthLambda
+        DB_lambda = _lambda.Function(
+            self,
             'Sakchyam_DynamoDBLambdaFunction',
-            './modules',
-            'DBLambda.lambda_handler',
-            DBlambda_role
+            code=_lambda.Code.from_asset('./modules'),
+            handler='DBLambda.lambda_handler',
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            role=DBlambda_role,
+            timeout=Duration.seconds(15),
+            environment={
+                "TABLE_NAME": db_table.table_name,
+                "WEBHEALTH_LAMBDA_NAME": "WebHealthLambda"
+            }
         )
         DB_lambda.apply_removal_policy(RemovalPolicy.DESTROY)
         db_table.grant_write_data(DB_lambda)
 
+
+    # Create IAM role for Lambda with CloudWatch permissions
     def create_lambda_role(self):
         """
         Creates and returns an IAM role for Lambda with CloudWatch permissions.
@@ -145,19 +174,13 @@ class SakchyamShresthaStack(Stack):
         )
         return lambda_role
 
+    # Create Lambda function
     def create_lambda(self, function_id, code_path, handler_name, role):
-        """
-        Creates and returns a Lambda function resource.
-        Args:
-            function_id (str): Logical ID for the Lambda function
-            code_path (str): Path to the Lambda code directory
-            handler_name (str): Lambda handler function name
-            role (aws_iam.Role): IAM role for the Lambda function
-        """
+
         return _lambda.Function(self, function_id,
             code=_lambda.Code.from_asset(code_path),
             handler=handler_name,
             runtime=_lambda.Runtime.PYTHON_3_9,
             role=role,
-            timeout=Duration.seconds(20)
+            timeout=Duration.seconds(15)
         )

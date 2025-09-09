@@ -1,7 +1,7 @@
 import urllib.request
 import time
 # Import helper class for publishing metrics to CloudWatch
-from CloudWatch_putMetric import CloudWatchMetricPublisher
+from CloudWatchMetric import CloudWatchMetricPublisher
 # Import project constants
 import constants
 

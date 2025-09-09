@@ -133,7 +133,7 @@ If you get:
 
 ### 4. DynamoDB Logging of metrics for audit/history
 ![DynamoDB Logging of metrics for audit/history](Screenshots/5.png)
-(Screenshots/6.png)
+![ ](Screenshots/6.png)
 
 ### 5. Alarms & Notifications via SNS (email and SMS subscription)
 ![Alarms & Notifications via SNS](Screenshots/7.png)

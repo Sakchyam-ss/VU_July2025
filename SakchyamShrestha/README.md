@@ -116,3 +116,24 @@ If you get:
 ---
 
 *For questions or issues, please open an issue on GitHub.*
+
+
+
+### ScreenShots:
+
+### 1. Web Health Checks
+![Web Health Checks](Screenshots/1.png)
+
+### 2. DynamoDB Check
+![DynamoDB Check](Screenshots/2.png)
+![DynamoDB Log Check](Screenshots/4.png)
+
+### 3. Web Health Dashboard
+![Web Health Dashboard](Screenshots/3.png)
+
+### 4. DynamoDB Logging of metrics for audit/history
+![DynamoDB Logging of metrics for audit/history](Screenshots/5.png)
+![ ](Screenshots/6.png)
+
+### 5. Alarms & Notifications via SNS (email and SMS subscription)
+![Alarms & Notifications via SNS](Screenshots/7.png)
